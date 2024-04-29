@@ -1,2 +1,2 @@
 # SPEMix
-The code of SPEMix
+The official code of SPEMix
