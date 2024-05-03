@@ -258,7 +258,7 @@ class RepViT(nn.Module):
         return result
 from timm.models import register_model
 @register_model
-def create_model(index1,index2,lambda1,lambda2,pretrained=False, num_classes = 4, distillation=False):
+def create_model(pretrained=False, num_classes = 4, distillation=False):
     """
     Constructs a MobileNetV3-Large model
     """
@@ -269,7 +269,7 @@ def create_model(index1,index2,lambda1,lambda2,pretrained=False, num_classes = 4
         [3,   2,  256, 0, 1, 2],
         [3,   2, 512, 0, 1, 2],
     ]
-    return RepViT(cfgs,index1,index2,lambda1,lambda2, num_classes=4, distillation=False)
+    return RepViT(cfgs,num_classes=4, distillation=False)
 
 if __name__=='__main__':
     model = create_model([1,0],[0,1],0.2,0.2)
