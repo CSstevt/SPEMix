@@ -242,8 +242,11 @@ def main (student_model,teacher_model,args):
 
 
 if __name__ == '__main__':
-    student=torch.load(args)
-    teacher=torch.load()
+    from model.Repvit.student import create_model as create_steudent
+    from model.Repvit.teacher import create_model as create_teacher
+    student= create_student()
+    teacher = create_student()
+    
     args = parser.parse_args()
     main(student,teacher,args)
 
