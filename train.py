@@ -244,8 +244,13 @@ def main (student_model,teacher_model,args):
 if __name__ == '__main__':
     from model.Repvit.student import create_model as create_steudent
     from model.Repvit.teacher import create_model as create_teacher
+  
+    index1 = no_repeat_shuffle_idx(args.batch_size)
+    index2 = no_repeat_shuffle_idx(args.batch_size)
+    lambda1 = np.random.beta(args.lamda, args.lamda)
+    lambda2 = np.random.beta(args.lamda, args.lamda)
     student= create_student()
-    teacher = create_student()
+    teacher = create_teacher(index1,index2,lambda1,lambda2)
     
     args = parser.parse_args()
     main(student,teacher,args)
