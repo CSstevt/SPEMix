@@ -111,33 +111,32 @@ def train(device, epoch_index, student_model,teacher_model, batch_num, item, ind
         muti_2 = result_u2['mcl']
         multiloss = mb_sup_loss(logitcls_x, y)
         p = F.softmax(logit_1, dim=-1)
-        target_xu = p.detach()
+        p = p.detach()     # the probability of IID (P)
         tmp_range = torch.arange(0, xu.shape[0]).long().to(device)
-        q = torch.zeros((xu.shape[0], 5)).to(device)
+        # init sp label
+        sp = torch.zeros((xu.shape[0], 5)).to(device)
         logits_mb = muti_1.view(xu.shape[0], 2, -1)
-        r = F.softmax(logits_mb, 1)
-        out_scores = torch.sum(p * r[tmp_range, 0, :], 1)
-        in_mask = (out_scores < 0.5)
-        o_neg = r[tmp_range, 0, :]
-        o_pos = r[tmp_range, 1, :]
-        q[:, :4] = target_xu * o_pos
-        q[:, 4] = torch.sum(target_xu * o_neg, 1)
-        targets_u1 = q.detach()
+        Q = F.softmax(logits_mb, 1)    #  calculate the probability of OOD (Q)
+        q_in = Q[tmp_range, 0, :]
+        q_out = Q[tmp_range, 1, :]
+        sp[:, :4] = p * q_in     # the IID probability of splabel from 1 to 4
+        sp[:, 4] = torch.sum(p * q_out, 1)    # the OOD probability of splabel
+        targets_u1 = sp.detach()   # sp pseudo-label
         max_probs1, targets_u1 = torch.max(targets_u1, dim=-1)
         masku1 = max_probs1.ge(0.).float()
         p2 = F.softmax(logit_2, dim=-1)
-        target_xu = p2.detach()
+        p2 = p2.detach()
         tmp_range = torch.arange(0, xu.shape[0]).long().to(device)
-        q2 = torch.zeros((xu.shape[0], 5)).to(device)
+        sp2 = torch.zeros((xu.shape[0], 5)).to(device)
         logits_mb2 = muti_2.view(xu.shape[0], 2, -1)
-        r = F.softmax(logits_mb2, 1)
-        o_neg = r[tmp_range, 0, :]
-        o_pos = r[tmp_range, 1, :]
-        q2[:, :4] = target_xu * o_pos
-        q2[:, 4] = torch.sum(target_xu * o_neg, 1)
-        targets_u2 = q2.detach()
-        max_probs1, targets_u1 = torch.max(targets_u2, dim=-1)
-        masku2 = max_probs1.ge(0.).float()
+        Q2 = F.softmax(logits_mb2, 1)
+        q2_in = Q2[tmp_range, 0, :]
+        q2_out = Q2[tmp_range, 1, :]
+        sp2[:, :4] = p2 * q2_in
+        sp2[:, 4] = torch.sum(p * q2_out, 1)
+        targets_u2 = sp2.detach()
+        max_probs2, targets_u2 = torch.max(targets_u2, dim=-1)
+        masku2 = max_probs2.ge(0.).float()
         lossu1 = F.cross_entropy(oplogits_1, targets_u1, reduction='mean') * masku1
         lossu2 = F.cross_entropy(oplogits_2, targets_u2, reduction='mean') * masku2
         lossu1 = lossu1.mean()
@@ -148,7 +147,7 @@ def train(device, epoch_index, student_model,teacher_model, batch_num, item, ind
         l = teacher_model.get_mask_loss()['loss']
         l.backward(retain_graph=True)
         masku = teacher_model.mask1
-        mix_im = u1 * masku[:, 0, :, :].unsqueeze(1) + u2 * masku[:, 1, :, :].unsqueeze(1)  # 混合后的图像
+        mix_im = u1 * masku[:, 0, :, :].unsqueeze(1) + u2 * masku[:, 1, :, :].unsqueeze(1)  # mixed unlabeled data
         logit_mix = student_model(mix_im)['out']
         pm = F.softmax(logit_1, dim=-1)
         max_probs1, targets_u1 = torch.max(pm, dim=-1)
@@ -193,6 +192,7 @@ def train(device, epoch_index, student_model,teacher_model, batch_num, item, ind
         p_bar.update()
     p_bar.close()
     return loss.item , accuracy
+  
 def main (student_model,teacher_model,args):
     student_model.train()
     teacher_model.train()
@@ -206,7 +206,7 @@ def main (student_model,teacher_model,args):
         #         transforms.Normalize(mean=echo_mean, std=echo_std)
     ])
     val_transform = transforms.Compose([
-        #        transforms.Grayscale(num_output_channels=3),  # 将图像转换为彩色图像
+        #        transforms.Grayscale(num_output_channels=3),  # transform 
         transforms.ToTensor(), ])
 
     train_data = dataset(args.train_path, transform_fn=train_transform)
